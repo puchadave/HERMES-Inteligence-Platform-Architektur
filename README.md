@@ -1,0 +1,1 @@
+# HERMES-Inteligence-Platform-Architektur
