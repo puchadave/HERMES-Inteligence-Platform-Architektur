@@ -8,7 +8,7 @@
     },
     "github": {
       "transport": "streamable-http",
-      "url": "http://github-mcp:8082/mcp",
+      "url": "http://github-mcp:8082/",
       "headers": {
         "Authorization": "Bearer ${GITHUB_MCP_TOKEN}"
       },
