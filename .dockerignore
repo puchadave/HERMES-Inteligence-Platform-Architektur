@@ -1,0 +1,10 @@
+.git
+.env
+runtime
+models
+sbom
+attestations
+.venv
+__pycache__
+.pytest_cache
+*.pyc

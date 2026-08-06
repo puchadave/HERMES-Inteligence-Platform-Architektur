@@ -1,0 +1,323 @@
+name: ${COMPOSE_PROJECT_NAME:-odysseus}
+
+x-common: &common
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - backend
+
+services:
+  traefik:
+    image: traefik:v3.7.1
+    profiles: [core]
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --accesslog=true
+      - --log.level=INFO
+    ports:
+      - 80:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./deploy/traefik/dynamic:/etc/traefik/dynamic:ro
+    networks:
+      - edge
+      - backend
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.traefik.rule: Host(`${TRAEFIK_HOST:-traefik.localhost}`)
+      traefik.http.routers.traefik.entrypoints: web
+      traefik.http.routers.traefik.middlewares: odysseus-auth-chain@file
+      traefik.http.routers.traefik.service: api@internal
+
+  keycloak-db:
+    image: postgres:17.6-alpine
+    profiles: [core]
+    <<: *common
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloak-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U keycloak -d keycloak]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.5.6
+    profiles: [core]
+    <<: *common
+    command: [start-dev, --import-realm]
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: http://${AUTH_HOST:-auth.localhost}
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./runtime/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.keycloak.rule: Host(`${AUTH_HOST:-auth.localhost}`)
+      traefik.http.routers.keycloak.entrypoints: web
+      traefik.http.services.keycloak.loadbalancer.server.port: "8080"
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.2
+    profiles: [core]
+    <<: *common
+    depends_on:
+      - keycloak
+    extra_hosts:
+      - host.docker.internal:host-gateway
+      - ${AUTH_HOST:-auth.localhost}:host-gateway
+    environment:
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: http://${AUTH_HOST:-auth.localhost}/realms/odysseus
+      OAUTH2_PROXY_CLIENT_ID: odysseus-web
+      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET}
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET}
+      OAUTH2_PROXY_COOKIE_SECURE: "false"
+      OAUTH2_PROXY_COOKIE_SAMESITE: lax
+      OAUTH2_PROXY_COOKIE_DOMAINS: .localhost
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_UPSTREAMS: static://202
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_REDIRECT_URL: http://${SEARCH_HOST:-search.localhost}/oauth2/callback
+      OAUTH2_PROXY_WHITELIST_DOMAINS: .localhost
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.oauth2.rule: Host(`${SEARCH_HOST:-search.localhost}`) && PathPrefix(`/oauth2/`)
+      traefik.http.routers.oauth2.entrypoints: web
+      traefik.http.services.oauth2.loadbalancer.server.port: "4180"
+
+  valkey:
+    image: valkey/valkey:9.1.0-alpine
+    profiles: [core]
+    <<: *common
+    command: [valkey-server, --save, "60", "1", --loglevel, warning]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: [CMD, valkey-cli, ping]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  nats:
+    image: nats:2.14.1-alpine
+    profiles: [core]
+    <<: *common
+    command: [-c, /etc/nats/nats.conf]
+    environment:
+      NATS_USER: ${NATS_USER}
+      NATS_PASSWORD: ${NATS_PASSWORD}
+    volumes:
+      - ./deploy/nats/nats.conf:/etc/nats/nats.conf:ro
+      - nats-data:/data
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1:8222/healthz]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  odysseus-api:
+    build:
+      context: ./services/odysseus-api
+    profiles: [core]
+    <<: *common
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      ODYSSEUS_ENV: production
+      ODYSSEUS_NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
+      ODYSSEUS_SEARCH_PROFILES_PATH: /app/config/search_profiles.yml
+    volumes:
+      - ./config:/app/config:ro
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.odysseus-api.rule: Host(`${API_HOST:-api.localhost}`)
+      traefik.http.routers.odysseus-api.entrypoints: web
+      traefik.http.routers.odysseus-api.middlewares: odysseus-auth-chain@file
+      traefik.http.routers.odysseus-api.service: odysseus-api
+      traefik.http.routers.odysseus-search.rule: Host(`${SEARCH_HOST:-search.localhost}`) && PathPrefix(`/odysseus`)
+      traefik.http.routers.odysseus-search.entrypoints: web
+      traefik.http.routers.odysseus-search.priority: "100"
+      traefik.http.routers.odysseus-search.middlewares: odysseus-auth-chain@file,odysseus-strip-prefix@file
+      traefik.http.routers.odysseus-search.service: odysseus-api
+      traefik.http.services.odysseus-api.loadbalancer.server.port: "8000"
+
+  searxng:
+    build:
+      context: ./services/searxng
+      args:
+        SEARXNG_TAG: 2026.7.26-b060c780d
+    profiles: [core]
+    <<: *common
+    depends_on:
+      valkey:
+        condition: service_healthy
+    environment:
+      SEARXNG_BASE_URL: http://${SEARCH_HOST:-search.localhost}/
+      SEARXNG_SECRET: ${SEARXNG_SECRET}
+      SEARXNG_VALKEY_URL: valkey://valkey:6379/0
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ./deploy/searxng/limiter.toml:/etc/searxng/limiter.toml:ro
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.searxng.rule: Host(`${SEARCH_HOST:-search.localhost}`)
+      traefik.http.routers.searxng.entrypoints: web
+      traefik.http.routers.searxng.middlewares: odysseus-auth-chain@file
+      traefik.http.services.searxng.loadbalancer.server.port: "8080"
+
+  vpn-gateway:
+    image: qmcgaw/gluetun:v3.41.1
+    profiles: [vpn]
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: ${VPN_SERVICE_PROVIDER:-protonvpn}
+      VPN_TYPE: ${VPN_TYPE:-wireguard}
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY}
+      WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES}
+      SERVER_COUNTRIES: ${SERVER_COUNTRIES:-Germany}
+      FIREWALL_INPUT_PORTS: "8080"
+      TZ: ${TZ:-Europe/Berlin}
+    networks:
+      - backend
+    healthcheck:
+      test: [CMD, /gluetun-entrypoint, healthcheck]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  searxng-vpn:
+    build:
+      context: ./services/searxng
+      args:
+        SEARXNG_TAG: 2026.7.26-b060c780d
+    profiles: [vpn]
+    restart: unless-stopped
+    network_mode: service:vpn-gateway
+    depends_on:
+      vpn-gateway:
+        condition: service_healthy
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET}
+    volumes:
+      - ./deploy/searxng/settings-vpn.yml:/etc/searxng/settings.yml:ro
+      - ./deploy/searxng/limiter.toml:/etc/searxng/limiter.toml:ro
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.2
+    profiles: [xeon]
+    <<: *common
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    profiles: [xeon]
+    <<: *common
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - evidence-data:/data
+
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    profiles: [xeon]
+    <<: *common
+    command:
+      - -m
+      - /models/${LOCAL_LLM_MODEL_FILE:-model.gguf}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --ctx-size
+      - ${LOCAL_LLM_CTX:-32768}
+      - --threads
+      - ${LOCAL_LLM_THREADS:-16}
+    volumes:
+      - ./models:/models:ro
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [observability]
+    <<: *common
+    command: [--config.file=/etc/prometheus/prometheus.yml]
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+  loki:
+    image: grafana/loki:3.5.3
+    profiles: [observability]
+    <<: *common
+    command: [-config.file=/etc/loki/config.yml]
+    volumes:
+      - ./deploy/loki/config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: [observability]
+    <<: *common
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.grafana.rule: Host(`${GRAFANA_HOST:-grafana.localhost}`)
+      traefik.http.routers.grafana.entrypoints: web
+      traefik.http.routers.grafana.middlewares: odysseus-auth-chain@file
+      traefik.http.services.grafana.loadbalancer.server.port: "3000"
+
+networks:
+  edge:
+  backend:
+    internal: false
+
+volumes:
+  keycloak-db:
+  valkey-data:
+  nats-data:
+  qdrant-data:
+  evidence-data:
+  prometheus-data:
+  loki-data:
+  grafana-data:

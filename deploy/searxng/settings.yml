@@ -1,0 +1,26 @@
+use_default_settings: true
+
+server:
+  bind_address: "0.0.0.0"
+  port: 8080
+  limiter: true
+  image_proxy: true
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "de"
+  formats:
+    - html
+    - json
+
+ui:
+  default_locale: "de"
+  query_in_title: true
+  static_use_hash: true
+
+outgoing:
+  request_timeout: 8.0
+  max_request_timeout: 20.0
+  pool_connections: 100
+  pool_maxsize: 20

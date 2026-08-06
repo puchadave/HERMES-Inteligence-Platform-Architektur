@@ -1,0 +1,42 @@
+version: 1
+profiles:
+  standard:
+    label: Standard Web Search
+    route: searxng
+    data_class: public
+    description: General metasearch through the normal SearXNG node.
+  social:
+    label: Public Social-Media Search
+    route: xeon_queue
+    data_class: public
+    description: Public posts, profiles, handles, and platform references.
+  domains:
+    label: Domain and Infrastructure
+    route: xeon_queue
+    data_class: public
+    description: DNS, RDAP, certificate transparency, subdomains, and public metadata.
+  reverse_contact:
+    label: Reverse Contact Lookup
+    route: xeon_queue
+    data_class: confidential
+    description: Authorized correlation of supplied email, phone, or address indicators.
+  documents:
+    label: Documents and Metadata
+    route: xeon_queue
+    data_class: internal
+    description: Public documents, metadata extraction, and source correlation.
+  media:
+    label: Images and Video
+    route: xeon_queue
+    data_class: internal
+    description: Media metadata, similarity workflows, and archive comparison.
+  threat_intel:
+    label: Cyber Threat Intelligence
+    route: xeon_queue
+    data_class: internal
+    description: Indicators, infrastructure, malware reports, and incident correlations.
+  specialist:
+    label: Specialist Investigation
+    route: xeon_queue
+    data_class: evidence
+    description: Case-bound workflow handled only by the Xeon specialist environment.

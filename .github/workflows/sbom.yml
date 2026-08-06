@@ -1,0 +1,30 @@
+name: SBOM
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: odysseus.spdx.json
+      - uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: odysseus.cyclonedx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: odysseus-sbom
+          path: |
+            odysseus.spdx.json
+            odysseus.cyclonedx.json

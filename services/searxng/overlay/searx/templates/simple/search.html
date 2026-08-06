@@ -1,0 +1,51 @@
+<form id="search" method="{{ method or 'POST' }}" action="{{ url_for('search') }}" role="search">
+  <div id="search_header">
+    <a id="search_logo" href="{{ url_for('index') }}" tabindex="0" title="{{ _('Display the front page') }}">
+      <span hidden>SearXNG</span>
+      {% include 'simple/searxng-wordmark.min.svg' without context %}
+    </a>
+    <div id="search_view">
+      <div class="search_box">
+        <input id="q" name="q" type="text" placeholder="{{ _('Search for...') }}" tabindex="1" autocomplete="off" autocapitalize="none" spellcheck="false" autocorrect="off" dir="auto" value="{{ q or '' }}">
+        <button id="clear_search" type="reset" aria-label="{{ _('clear') }}" class="hide_if_nojs"><span>{{ icon_big('close') }}</span><span class="show_if_nojs">{{ _('clear') }}</span></button>
+        <button id="send_search" type="submit" {%- if search_on_category_select -%}name="category_{{ selected_categories[0]|replace(' ', '_') }}"{%- endif -%} aria-label="{{ _('search') }}"><span class="hide_if_nojs">{{ icon_big('search') }}</span><span class="show_if_nojs">{{ _('search') }}</span></button>
+        <div class="autocomplete hide_if_nojs"><ul></ul></div>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.6rem;flex-wrap:wrap">
+        <label for="odysseus_profile" style="font-weight:600">Odysseus profile</label>
+        <select id="odysseus_profile" name="profile" style="max-width:26rem;padding:.45rem;border-radius:.35rem">
+          <option value="standard">Standard Web Search</option>
+          <option value="social">Public Social-Media Search</option>
+          <option value="domains">Domain and Infrastructure</option>
+          <option value="reverse_contact">Reverse Contact Lookup</option>
+          <option value="documents">Documents and Metadata</option>
+          <option value="media">Images and Video</option>
+          <option value="threat_intel">Cyber Threat Intelligence</option>
+          <option value="specialist">Specialist Investigation</option>
+        </select>
+        <small>Specialist profiles are dispatched to the Xeon policy service.</small>
+      </div>
+    </div>
+    {% set display_tooltip = true %}
+    {% include 'simple/categories.html' %}
+  </div>
+  <div class="search_filters">
+    {% include 'simple/filters/languages.html' %}
+    {% include 'simple/filters/time_range.html' %}
+    {% include 'simple/filters/safesearch.html' %}
+  </div>
+  <input type="hidden" name="theme" value="{{ theme }}" >
+  {% if timeout_limit %}<input type="hidden" name="timeout_limit" value="{{ timeout_limit|e }}" >{% endif %}
+</form>
+<script>
+(() => {
+  const form = document.getElementById('search');
+  const profile = document.getElementById('odysseus_profile');
+  form.addEventListener('submit', () => {
+    if (profile.value !== 'standard') {
+      form.method = 'GET';
+      form.action = '/odysseus/ui/search';
+    }
+  });
+})();
+</script>

@@ -1,0 +1,13 @@
+.env
+runtime/*
+!runtime/.gitkeep
+!runtime/keycloak/.gitkeep
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+*.log
+sbom/*.json
+attestations/*.json
+models/*
+!models/.gitkeep

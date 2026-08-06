@@ -1,0 +1,37 @@
+format_version: 1
+project: HERMES-Inteligence-Platform-Architektur
+baseline_date: 2026-08-06
+upstream_components:
+  searxng:
+    repository: https://github.com/searxng/searxng
+    image_tag: 2026.7.26-b060c780d
+    modification_strategy: container overlay
+    modified_upstream_files:
+      - path: searx/templates/simple/search.html
+        replacement: services/searxng/overlay/searx/templates/simple/search.html
+        purpose: Add deterministic Odysseus search-profile selection and specialist dispatch.
+changes:
+  - id: ODY-0001
+    files:
+      - compose.yaml
+      - deploy/traefik/dynamic/middlewares.yml
+    purpose: Authenticated routing for SearXNG, API, Keycloak, and optional services.
+  - id: ODY-0002
+    files:
+      - services/odysseus-api/app/policy.py
+      - config/search_profiles.yml
+    purpose: Deterministic query classification and local specialist routing.
+  - id: ODY-0003
+    files:
+      - clients/edge-cli/edge.py
+    purpose: Edge-first provider selection with Xeon fallback for sensitive tasks.
+  - id: ODY-0004
+    files:
+      - deploy/keycloak/realm-template.json
+    purpose: Central roles, web client, and optional ORCID identity federation.
+  - id: ODY-0005
+    files:
+      - .github/workflows/ci.yml
+      - .github/workflows/sbom.yml
+      - scripts/generate-sbom.sh
+    purpose: Reproducible tests and software-bill-of-materials generation.

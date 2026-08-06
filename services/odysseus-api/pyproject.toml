@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "odysseus-api"
+version = "0.1.0"
+description = "Policy and dispatch service for Odysseus D3"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.116.1",
+  "uvicorn[standard]==0.35.0",
+  "pydantic-settings==2.10.1",
+  "PyYAML==6.0.2",
+  "nats-py==2.11.0"
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest==8.4.1",
+  "httpx==0.28.1",
+  "pytest-asyncio==1.1.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

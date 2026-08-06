@@ -1,0 +1,10 @@
+change_id,file,source_type,purpose
+ODY-0001,compose.yaml,project,Define D3 services and profiles
+ODY-0001,deploy/traefik/dynamic/middlewares.yml,project,Protect routed services through OIDC
+ODY-0002,services/odysseus-api/app/policy.py,project,Deterministic search and data classification
+ODY-0002,config/search_profiles.yml,project,Declare search profiles and routes
+ODY-0003,clients/edge-cli/edge.py,project,Implement edge-first provider routing
+ODY-0004,deploy/keycloak/realm-template.json,project,Declare roles client and ORCID federation
+ODY-0005,.github/workflows/ci.yml,project,Run tests Compose validation and image builds
+ODY-0005,.github/workflows/sbom.yml,project,Generate release SBOM artifacts
+SEARXNG-0001,services/searxng/overlay/searx/templates/simple/search.html,upstream-replacement,Add profile selector and Xeon dispatch

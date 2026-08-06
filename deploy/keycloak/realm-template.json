@@ -1,0 +1,64 @@
+{
+  "realm": "odysseus",
+  "enabled": true,
+  "displayName": "Odysseus Intelligence Platform",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "roles": {
+    "realm": [
+      {"name": "odysseus-admin"},
+      {"name": "research-lead"},
+      {"name": "researcher"},
+      {"name": "investigator"},
+      {"name": "analyst"},
+      {"name": "evidence-reviewer"},
+      {"name": "worker-operator"},
+      {"name": "external-contributor"},
+      {"name": "read-only"}
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "odysseus-web",
+      "name": "Odysseus Web",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${OAUTH2_PROXY_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://${SEARCH_HOST}/oauth2/callback",
+        "http://${API_HOST}/oauth2/callback",
+        "http://${GRAFANA_HOST}/oauth2/callback"
+      ],
+      "webOrigins": [
+        "http://${SEARCH_HOST}",
+        "http://${API_HOST}",
+        "http://${GRAFANA_HOST}"
+      ],
+      "protocol": "openid-connect"
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "orcid",
+      "displayName": "ORCID",
+      "providerId": "oidc",
+      "enabled": ${ORCID_ENABLED},
+      "trustEmail": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "${ORCID_CLIENT_ID}",
+        "clientSecret": "${ORCID_CLIENT_SECRET}",
+        "authorizationUrl": "https://orcid.org/oauth/authorize",
+        "tokenUrl": "https://orcid.org/oauth/token",
+        "userInfoUrl": "https://orcid.org/oauth/userinfo",
+        "issuer": "https://orcid.org",
+        "defaultScope": "openid /authenticate",
+        "validateSignature": "true",
+        "useJwksUrl": "true",
+        "syncMode": "IMPORT"
+      }
+    }
+  ]
+}
