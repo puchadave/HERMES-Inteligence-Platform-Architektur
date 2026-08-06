@@ -50,8 +50,6 @@ services:
       - http
       - --port
       - "8082"
-      - --listen-host
-      - 0.0.0.0
       - --base-path
       - /mcp
       - --read-only
