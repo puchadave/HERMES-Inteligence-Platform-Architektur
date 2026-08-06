@@ -50,8 +50,6 @@ services:
       - http
       - --port
       - "8082"
-      - --base-path
-      - /mcp
       - --read-only
       - --toolsets
       - repos,issues,pull_requests,actions
@@ -82,7 +80,7 @@ services:
       ODYSSEUS_NATS_STREAM: ODYSSEUS_SEARCH
       ODYSSEUS_NATS_CONSUMER: odysseus-osint-workers
       OPENOSINT_MCP_URL: http://openosint-mcp:8000/mcp
-      GITHUB_MCP_URL: http://github-mcp:8082/mcp
+      GITHUB_MCP_URL: http://github-mcp:8082/
       GITHUB_MCP_TOKEN: ${GITHUB_MCP_TOKEN:-}
       ODYSSEUS_REPORT_DIR: /data/jobs
       ODYSSEUS_MAX_PARALLEL_TOOLS: ${ODYSSEUS_MAX_PARALLEL_TOOLS:-3}
