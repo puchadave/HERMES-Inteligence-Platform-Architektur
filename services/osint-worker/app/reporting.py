@@ -57,9 +57,13 @@ def write_report(base_dir: str, job: dict[str, Any], result: dict[str, Any]) -> 
     json_path = directory / "result.json"
     markdown_path = directory / "summary.md"
     manifest_path = directory / "manifest.sha256"
-
-    encoded = json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8")
-    json_path.write_bytes(encoded)
+    artifacts = {
+        "directory": str(directory),
+        "json": str(json_path),
+        "markdown": str(markdown_path),
+        "manifest": str(manifest_path),
+    }
+    canonical_result = {**result, "artifacts": artifacts}
 
     lines = [
         f"# Odysseus Research Report · {job_id}",
@@ -67,15 +71,15 @@ def write_report(base_dir: str, job: dict[str, Any], result: dict[str, Any]) -> 
         f"- Query: `{job.get('query', '')}`",
         f"- Profile: `{job.get('profile', '')}`",
         f"- Requested by: `{job.get('requested_by', 'unknown')}`",
-        f"- Target: `{result.get('target', '')}`",
-        f"- Target type: `{result.get('target_kind', '')}`",
-        f"- Started: `{result.get('started_at', '')}`",
-        f"- Finished: `{result.get('finished_at', '')}`",
+        f"- Target: `{canonical_result.get('target', '')}`",
+        f"- Target type: `{canonical_result.get('target_kind', '')}`",
+        f"- Started: `{canonical_result.get('started_at', '')}`",
+        f"- Finished: `{canonical_result.get('finished_at', '')}`",
         "",
         "## Tool results",
         "",
     ]
-    for item in result.get("tools", []):
+    for item in canonical_result.get("tools", []):
         lines.extend(
             [
                 f"### {item.get('name', 'unknown')}",
@@ -97,9 +101,13 @@ def write_report(base_dir: str, job: dict[str, Any], result: dict[str, Any]) -> 
                 ]
             )
 
-    append_json_section(lines, "BBOT passive scan", result.get("bbot"))
-    append_json_section(lines, "GitHub MCP source context", result.get("github_mcp"))
+    append_json_section(lines, "BBOT passive scan", canonical_result.get("bbot"))
+    append_json_section(lines, "GitHub MCP source context", canonical_result.get("github_mcp"))
 
+    json_path.write_text(
+        json.dumps(canonical_result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     markdown_path.write_text("\n".join(lines), encoding="utf-8")
 
     manifest_lines = []
@@ -108,9 +116,4 @@ def write_report(base_dir: str, job: dict[str, Any], result: dict[str, Any]) -> 
         manifest_lines.append(f"{digest}  {path.name}")
     manifest_path.write_text("\n".join(manifest_lines) + "\n", encoding="utf-8")
 
-    return {
-        "directory": str(directory),
-        "json": str(json_path),
-        "markdown": str(markdown_path),
-        "manifest": str(manifest_path),
-    }
+    return artifacts
