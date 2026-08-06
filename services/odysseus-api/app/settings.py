@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     nats_subject: str = "odysseus.jobs.search"
     nats_result_subject: str = "odysseus.results.search"
     nats_stream: str = "ODYSSEUS_SEARCH"
+    research_dir: str = "/app/research/jobs"
 
     model_config = SettingsConfigDict(env_prefix="ODYSSEUS_", extra="ignore")
 
