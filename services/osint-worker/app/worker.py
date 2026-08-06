@@ -13,6 +13,7 @@ import nats
 from .mcp_client import MCPClient
 from .planner import TargetKind, build_plan, classify_target, extract_target, normalize_target
 from .reporting import normalize_tool_result, utc_now, write_report
+from .source_intelligence import collect_repository_context
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("odysseus-osint-worker")
@@ -21,6 +22,8 @@ NATS_URL = os.getenv("ODYSSEUS_NATS_URL", "nats://localhost:4222")
 NATS_SUBJECT = os.getenv("ODYSSEUS_NATS_SUBJECT", "odysseus.jobs.search")
 NATS_RESULT_SUBJECT = os.getenv("ODYSSEUS_NATS_RESULT_SUBJECT", "odysseus.results.search")
 OPENOSINT_MCP_URL = os.getenv("OPENOSINT_MCP_URL", "http://openosint-mcp:8000/mcp")
+GITHUB_MCP_URL = os.getenv("GITHUB_MCP_URL", "http://github-mcp:8082/mcp")
+GITHUB_MCP_TOKEN = os.getenv("GITHUB_MCP_TOKEN", "")
 REPORT_DIR = os.getenv("ODYSSEUS_REPORT_DIR", "/data/jobs")
 MAX_PARALLEL_TOOLS = max(1, int(os.getenv("ODYSSEUS_MAX_PARALLEL_TOOLS", "3")))
 INCLUDE_PAID = os.getenv("ODYSSEUS_ENABLE_PAID_OSINT", "false").lower() == "true"
@@ -116,7 +119,8 @@ async def execute_tool(
 async def process_job(job: dict[str, Any]) -> dict[str, Any]:
     started_at = utc_now()
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    target = str(metadata.get("target") or extract_target(str(job.get("query", ""))))
+    query = str(job.get("query", ""))
+    target = str(metadata.get("target") or extract_target(query))
     kind = classify_target(target)
     target = normalize_target(target, kind)
     plan = build_plan(target, include_paid=INCLUDE_PAID)
@@ -133,6 +137,17 @@ async def process_job(job: dict[str, Any]) -> dict[str, Any]:
     if kind is TargetKind.DOMAIN:
         bbot_result = await run_bbot_passive(target, job_dir)
 
+    github_context: dict[str, Any] | None = None
+    try:
+        github_context = await collect_repository_context(
+            f"{query} {target}",
+            mcp_url=GITHUB_MCP_URL,
+            token=GITHUB_MCP_TOKEN,
+        )
+    except Exception as exc:
+        logger.exception("GitHub MCP enrichment failed")
+        github_context = {"status": "error", "error": str(exc)}
+
     result = {
         "schema_version": "1.0",
         "job_id": job["job_id"],
@@ -144,6 +159,7 @@ async def process_job(job: dict[str, Any]) -> dict[str, Any]:
         "finished_at": utc_now(),
         "tools": tool_results,
         "bbot": bbot_result,
+        "github_mcp": github_context,
     }
     result["artifacts"] = write_report(REPORT_DIR, job, result)
     return result
