@@ -34,6 +34,21 @@ def normalize_tool_result(result: dict[str, Any]) -> Any:
     return values
 
 
+def append_json_section(lines: list[str], title: str, value: Any) -> None:
+    if value is None:
+        return
+    lines.extend(
+        [
+            f"## {title}",
+            "",
+            "```json",
+            json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True),
+            "```",
+            "",
+        ]
+    )
+
+
 def write_report(base_dir: str, job: dict[str, Any], result: dict[str, Any]) -> dict[str, str]:
     job_id = str(job["job_id"])
     directory = Path(base_dir) / job_id
@@ -82,8 +97,8 @@ def write_report(base_dir: str, job: dict[str, Any], result: dict[str, Any]) -> 
                 ]
             )
 
-    if result.get("bbot"):
-        lines.extend(["## BBOT passive scan", "", "```json", json.dumps(result["bbot"], ensure_ascii=False, indent=2, sort_keys=True), "```", ""])
+    append_json_section(lines, "BBOT passive scan", result.get("bbot"))
+    append_json_section(lines, "GitHub MCP source context", result.get("github_mcp"))
 
     markdown_path.write_text("\n".join(lines), encoding="utf-8")
 
