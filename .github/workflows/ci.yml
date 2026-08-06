@@ -25,6 +25,10 @@ jobs:
           ./scripts/bootstrap.sh
       - name: Run tests
         run: pytest services/odysseus-api/tests clients/edge-cli/tests -q
+      - name: Verify committed source SBOM
+        run: |
+          python scripts/generate-source-sbom.py
+          git diff --exit-code -- sbom/odysseus-source.cyclonedx.json sbom/odysseus-source.spdx.json
       - name: Validate Compose
         run: docker compose --profile core --profile vpn --profile xeon --profile observability config >/dev/null
       - name: Build project images
