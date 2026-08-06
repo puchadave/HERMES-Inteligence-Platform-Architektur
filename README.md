@@ -26,7 +26,7 @@ Keycloak ─► Traefik ─► SearXNG ─► Odysseus API ─► NATS ─► Xe
 - FastAPI policy and dispatch service with NATS job publication.
 - Edge CLI with local routing and OpenAI, Gemini, or Xeon execution paths.
 - Optional Qdrant, MinIO, llama.cpp, Prometheus, Loki, and Grafana profiles.
-- CI, tests, SBOM generation, source-modification manifest, ADRs, and operations documentation.
+- CI, tests, committed source-declaration SBOMs, release SBOM generation, source-modification manifest, ADRs, and operations documentation.
 
 ## Start locally
 
