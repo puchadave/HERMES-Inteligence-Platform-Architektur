@@ -35,3 +35,9 @@ changes:
       - .github/workflows/sbom.yml
       - scripts/generate-sbom.sh
     purpose: Reproducible tests and software-bill-of-materials generation.
+  - id: ODY-0006
+    files:
+      - scripts/generate-source-sbom.py
+      - sbom/odysseus-source.cyclonedx.json
+      - sbom/odysseus-source.spdx.json
+    purpose: Deterministic top-level source and container declaration SBOMs.
