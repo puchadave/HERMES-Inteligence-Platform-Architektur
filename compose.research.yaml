@@ -1,4 +1,12 @@
 services:
+  odysseus-api:
+    environment:
+      ODYSSEUS_NATS_RESULT_SUBJECT: odysseus.results.search
+      ODYSSEUS_NATS_STREAM: ODYSSEUS_SEARCH
+      ODYSSEUS_RESEARCH_DIR: /app/research/jobs
+    volumes:
+      - research-data:/app/research:ro
+
   openosint-mcp:
     build:
       context: ./services/openosint-mcp
@@ -68,6 +76,8 @@ services:
       ODYSSEUS_NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
       ODYSSEUS_NATS_SUBJECT: odysseus.jobs.search
       ODYSSEUS_NATS_RESULT_SUBJECT: odysseus.results.search
+      ODYSSEUS_NATS_STREAM: ODYSSEUS_SEARCH
+      ODYSSEUS_NATS_CONSUMER: odysseus-osint-workers
       OPENOSINT_MCP_URL: http://openosint-mcp:8000/mcp
       GITHUB_MCP_URL: http://github-mcp:8082/mcp
       GITHUB_MCP_TOKEN: ${GITHUB_MCP_TOKEN:-}
@@ -76,6 +86,8 @@ services:
       ODYSSEUS_ENABLE_PAID_OSINT: ${ODYSSEUS_ENABLE_PAID_OSINT:-false}
       ODYSSEUS_ENABLE_BBOT: ${ODYSSEUS_ENABLE_BBOT:-false}
       ODYSSEUS_BBOT_TIMEOUT_SECONDS: ${ODYSSEUS_BBOT_TIMEOUT_SECONDS:-900}
+      ODYSSEUS_MAX_DELIVERIES: ${ODYSSEUS_MAX_DELIVERIES:-5}
+      ODYSSEUS_ACK_HEARTBEAT_SECONDS: ${ODYSSEUS_ACK_HEARTBEAT_SECONDS:-20}
       HIBP_API_KEY: ${HIBP_API_KEY:-}
       IPINFO_TOKEN: ${IPINFO_TOKEN:-}
       IP2LOCATION_API_KEY: ${IP2LOCATION_API_KEY:-}
@@ -104,6 +116,8 @@ services:
     environment:
       ODYSSEUS_NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
       ODYSSEUS_NATS_SUBJECT: odysseus.jobs.search
+      ODYSSEUS_NATS_RESULT_SUBJECT: odysseus.results.search
+      ODYSSEUS_NATS_STREAM: ODYSSEUS_SEARCH
       ODYSSEUS_SCHEDULE_PATH: /app/config/research_targets.yml
       ODYSSEUS_SCHEDULER_STATE: /data/scheduler-state.json
       ODYSSEUS_SCHEDULER_ENABLED: ${ODYSSEUS_SCHEDULER_ENABLED:-true}
