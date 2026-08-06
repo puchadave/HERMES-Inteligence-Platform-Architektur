@@ -10,6 +10,37 @@ upstream_components:
       - path: searx/templates/simple/search.html
         replacement: services/searxng/overlay/searx/templates/simple/search.html
         purpose: Add deterministic Odysseus search-profile selection and specialist dispatch.
+  openosint:
+    repository: https://github.com/OpenOSINT/OpenOSINT
+    package_version: 2.25.0
+    integration_strategy: unmodified Python package behind Supergateway Streamable HTTP transport
+    companion_tools:
+      - name: supergateway
+        version: 3.4.3
+        source: npm
+      - name: holehe
+        version: 1.61
+        source: PyPI
+      - name: sherlock-project
+        version: 0.16.0
+        source: PyPI
+      - name: Sublist3r
+        version: 1.0
+        source: PyPI
+      - name: phoneinfoga
+        version: 2.11.0
+        source: https://github.com/sundowndev/phoneinfoga/releases/tag/v2.11.0
+        asset: phoneinfoga_Linux_x86_64.tar.gz
+        sha256: 6173dfc4ec009a6fe688068bac5a250646f5a8f56409098f5edcc7e404b12a52
+  github_mcp_server:
+    repository: https://github.com/github/github-mcp-server
+    image_tag: v1.0.5
+    integration_strategy: unmodified official container in native read-only HTTP mode
+    endpoint: http://github-mcp:8082/
+  osint_automation_agents:
+    repository: https://github.com/esandeepchoudary/osint_automation_using_AI_agents
+    integration_strategy: architecture reference only
+    adopted_pattern: passive BBOT orchestration and report pipeline without Google ADK runtime
 changes:
   - id: ODY-0001
     files:
@@ -38,6 +69,66 @@ changes:
   - id: ODY-0006
     files:
       - scripts/generate-source-sbom.py
+      - sbom/source-components.yml
       - sbom/odysseus-source.cyclonedx.json
       - sbom/odysseus-source.spdx.json
-    purpose: Deterministic top-level source and container declaration SBOMs.
+    purpose: Deterministic top-level source, direct tool, and container declaration SBOMs.
+  - id: ODY-0007
+    files:
+      - compose.research.yaml
+      - services/openosint-mcp/Dockerfile
+      - config/mcp_servers.json
+    purpose: Add OpenOSINT and official GitHub MCP servers on the private backend network.
+  - id: ODY-0008
+    files:
+      - services/osint-worker/app/mcp_client.py
+      - services/osint-worker/app/planner.py
+      - services/osint-worker/app/worker.py
+      - services/osint-worker/app/source_intelligence.py
+    purpose: Consume jobs, classify targets, execute MCP tools, run optional passive BBOT, and enrich GitHub repository targets.
+  - id: ODY-0009
+    files:
+      - services/osint-worker/app/scheduler.py
+      - config/research_targets.yml
+    purpose: Reload recurring research targets and publish due background jobs without service restarts.
+  - id: ODY-0010
+    files:
+      - services/osint-worker/app/reporting.py
+      - services/osint-worker/tests/test_planner.py
+      - services/osint-worker/tests/test_source_intelligence.py
+      - docs/architecture/MCP-AUTOMATION.md
+    purpose: Generate deterministic result artifacts, verify routing logic, and document the complete research pipeline.
+  - id: ODY-0011
+    files:
+      - services/odysseus-api/app/queue.py
+      - services/odysseus-api/app/settings.py
+      - services/osint-worker/app/jetstream.py
+      - services/osint-worker/app/worker.py
+      - services/osint-worker/app/scheduler.py
+    purpose: Persist jobs and results in JetStream with explicit acknowledgements, heartbeats, bounded redelivery, and durable consumers.
+  - id: ODY-0012
+    files:
+      - services/odysseus-api/app/results.py
+      - services/odysseus-api/app/main.py
+      - services/odysseus-api/tests/test_results.py
+      - services/odysseus-api/tests/test_api.py
+      - compose.research.yaml
+    purpose: Mount completed research artifacts read-only and expose authenticated JSON and Markdown result endpoints.
+  - id: ODY-0013
+    files:
+      - services/openosint-mcp/Dockerfile
+      - compose.research.yaml
+      - .env.example
+      - sbom/source-components.yml
+    purpose: Pin all directly installed OSINT tools, verify PhoneInfoga by SHA-256, and expose their versions as reproducible build arguments.
+  - id: ODY-0014
+    files:
+      - compose.research.yaml
+      - config/mcp_servers.json
+      - services/osint-worker/app/source_intelligence.py
+    purpose: Align GitHub MCP flags, root endpoint, and get_file_contents arguments with the official v1.0.5 source schemas.
+  - id: ODY-0015
+    files:
+      - services/osint-worker/app/reporting.py
+      - services/osint-worker/tests/test_reporting.py
+    purpose: Persist and publish the same canonical result object, including artifact paths, and verify SHA-256 manifests against the generated files.

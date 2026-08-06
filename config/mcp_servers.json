@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "openosint": {
+      "transport": "streamable-http",
+      "url": "http://openosint-mcp:8000/mcp",
+      "scope": "research",
+      "mode": "read-only-tools"
+    },
+    "github": {
+      "transport": "streamable-http",
+      "url": "http://github-mcp:8082/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_MCP_TOKEN}"
+      },
+      "scope": "source-intelligence",
+      "mode": "read-only"
+    }
+  }
+}
