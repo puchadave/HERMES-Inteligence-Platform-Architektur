@@ -127,3 +127,8 @@ changes:
       - config/mcp_servers.json
       - services/osint-worker/app/source_intelligence.py
     purpose: Align GitHub MCP flags, root endpoint, and get_file_contents arguments with the official v1.0.5 source schemas.
+  - id: ODY-0015
+    files:
+      - services/osint-worker/app/reporting.py
+      - services/osint-worker/tests/test_reporting.py
+    purpose: Persist and publish the same canonical result object, including artifact paths, and verify SHA-256 manifests against the generated files.
