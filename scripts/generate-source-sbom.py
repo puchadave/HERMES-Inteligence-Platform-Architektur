@@ -37,23 +37,34 @@ def split_requirement(requirement: str) -> tuple[str, str]:
     return requirement, "unspecified"
 
 
+def compose_documents() -> list[tuple[Path, dict]]:
+    documents: list[tuple[Path, dict]] = []
+    for path in sorted(ROOT.glob("compose*.yaml")):
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if isinstance(parsed, dict) and isinstance(parsed.get("services"), dict):
+            documents.append((path, parsed))
+    return documents
+
+
 def collect() -> list[dict[str, str]]:
     components: list[dict[str, str]] = []
-    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
-    for service, config in sorted(compose["services"].items()):
-        image = config.get("image")
-        if image:
-            name, version = split_image(image)
-            components.append({"type": "container", "name": name, "version": version, "scope": service})
-        elif "build" in config:
-            components.append({"type": "application", "name": f"odysseus/{service}", "version": "0.1.0", "scope": service})
-
     compose_args: dict[str, str] = {}
-    for service, config in compose["services"].items():
-        build = config.get("build")
-        if isinstance(build, dict):
-            for key, value in (build.get("args") or {}).items():
-                compose_args[str(key)] = str(value)
+
+    for compose_path, compose in compose_documents():
+        for service, config in sorted(compose["services"].items()):
+            if not isinstance(config, dict):
+                continue
+            image = config.get("image")
+            if image:
+                name, version = split_image(str(image))
+                components.append({"type": "container", "name": name, "version": version, "scope": service})
+            elif "build" in config:
+                components.append({"type": "application", "name": f"odysseus/{service}", "version": "0.1.0", "scope": service})
+
+            build = config.get("build")
+            if isinstance(build, dict):
+                for key, value in (build.get("args") or {}).items():
+                    compose_args[str(key)] = str(value)
 
     for dockerfile in sorted(ROOT.glob("**/Dockerfile")):
         if ".venv" in dockerfile.parts:
@@ -114,7 +125,7 @@ def cyclonedx(components: list[dict[str, str]]) -> dict:
         "version": 1,
         "metadata": {
             "timestamp": DATE,
-            "component": {"type": "application", "name": "Odysseus D3", "version": "0.1.0"},
+            "component": {"type": "application", "name": "Odysseus D3", "version": "0.2.0"},
             "properties": [{"name": "odysseus:sbom-kind", "value": "source-declaration"}],
         },
         "components": cdx_components,
