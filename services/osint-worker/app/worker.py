@@ -221,6 +221,7 @@ async def run() -> None:
     await jetstream.subscribe(
         NATS_SUBJECT,
         queue=NATS_CONSUMER,
+        durable=NATS_CONSUMER,
         cb=callback,
         stream=NATS_STREAM,
         manual_ack=True,
