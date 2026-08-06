@@ -1,0 +1,120 @@
+services:
+  openosint-mcp:
+    build:
+      context: ./services/openosint-mcp
+      args:
+        OPENOSINT_VERSION: ${OPENOSINT_VERSION:-2.25.0}
+        SUPERGATEWAY_VERSION: ${SUPERGATEWAY_VERSION:-3.4.3}
+    profiles: [research]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HIBP_API_KEY: ${HIBP_API_KEY:-}
+      IPINFO_TOKEN: ${IPINFO_TOKEN:-}
+      IP2LOCATION_API_KEY: ${IP2LOCATION_API_KEY:-}
+      ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+      SHODAN_API_KEY: ${SHODAN_API_KEY:-}
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
+      CENSYS_API_ID: ${CENSYS_API_ID:-}
+      CENSYS_SECRET: ${CENSYS_SECRET:-}
+      BRIGHTDATA_API_KEY: ${BRIGHTDATA_API_KEY:-}
+      BRIGHTDATA_SERP_ZONE: ${BRIGHTDATA_SERP_ZONE:-}
+      BRIGHTDATA_UNLOCKER_ZONE: ${BRIGHTDATA_UNLOCKER_ZONE:-}
+      GITHUB_TOKEN: ${GITHUB_MCP_TOKEN:-}
+    volumes:
+      - research-reports:/reports
+    networks:
+      - backend
+
+  github-mcp:
+    image: ghcr.io/github/github-mcp-server:v1.0.5
+    profiles: [research]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - http
+      - --port
+      - "8082"
+      - --listen-host
+      - 0.0.0.0
+      - --base-path
+      - /mcp
+      - --read-only
+      - --toolsets
+      - repos,issues,pull_requests,actions
+      - --enable-command-logging
+      - --log-file
+      - /logs/github-mcp.log
+    volumes:
+      - github-mcp-logs:/logs
+    networks:
+      - backend
+
+  osint-worker:
+    build:
+      context: ./services/osint-worker
+    profiles: [research]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      nats:
+        condition: service_healthy
+      openosint-mcp:
+        condition: service_healthy
+    environment:
+      ODYSSEUS_NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
+      ODYSSEUS_NATS_SUBJECT: odysseus.jobs.search
+      ODYSSEUS_NATS_RESULT_SUBJECT: odysseus.results.search
+      OPENOSINT_MCP_URL: http://openosint-mcp:8000/mcp
+      GITHUB_MCP_URL: http://github-mcp:8082/mcp
+      GITHUB_MCP_TOKEN: ${GITHUB_MCP_TOKEN:-}
+      ODYSSEUS_REPORT_DIR: /data/jobs
+      ODYSSEUS_MAX_PARALLEL_TOOLS: ${ODYSSEUS_MAX_PARALLEL_TOOLS:-3}
+      ODYSSEUS_ENABLE_PAID_OSINT: ${ODYSSEUS_ENABLE_PAID_OSINT:-false}
+      ODYSSEUS_ENABLE_BBOT: ${ODYSSEUS_ENABLE_BBOT:-false}
+      ODYSSEUS_BBOT_TIMEOUT_SECONDS: ${ODYSSEUS_BBOT_TIMEOUT_SECONDS:-900}
+      HIBP_API_KEY: ${HIBP_API_KEY:-}
+      IPINFO_TOKEN: ${IPINFO_TOKEN:-}
+      IP2LOCATION_API_KEY: ${IP2LOCATION_API_KEY:-}
+      ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+      SHODAN_API_KEY: ${SHODAN_API_KEY:-}
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
+      CENSYS_API_ID: ${CENSYS_API_ID:-}
+      CENSYS_SECRET: ${CENSYS_SECRET:-}
+      BRIGHTDATA_API_KEY: ${BRIGHTDATA_API_KEY:-}
+    volumes:
+      - research-data:/data
+    networks:
+      - backend
+
+  osint-scheduler:
+    build:
+      context: ./services/osint-worker
+    profiles: [research]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: [python, -m, app.scheduler]
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      ODYSSEUS_NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
+      ODYSSEUS_NATS_SUBJECT: odysseus.jobs.search
+      ODYSSEUS_SCHEDULE_PATH: /app/config/research_targets.yml
+      ODYSSEUS_SCHEDULER_STATE: /data/scheduler-state.json
+      ODYSSEUS_SCHEDULER_ENABLED: ${ODYSSEUS_SCHEDULER_ENABLED:-true}
+      ODYSSEUS_SCHEDULER_POLL_SECONDS: ${ODYSSEUS_SCHEDULER_POLL_SECONDS:-30}
+    volumes:
+      - ./config/research_targets.yml:/app/config/research_targets.yml:ro
+      - research-data:/data
+    networks:
+      - backend
+
+volumes:
+  research-data:
+  research-reports:
+  github-mcp-logs:
