@@ -44,12 +44,7 @@ async def collect_repository_context(
             }
         result = await client.call_tool(
             "get_file_contents",
-            {
-                "owner": owner,
-                "repo": repo,
-                "path": "/",
-                "fields": ["name", "type", "path", "sha"],
-            },
+            {"owner": owner, "repo": repo, "path": "/"},
         )
         return {
             "status": "ok",
