@@ -33,7 +33,7 @@
 
 - [x] Define pinned container images and named volumes.
 - [x] Generate secrets locally and render the Keycloak realm.
-- [x] Validate all profiles with `docker compose config`.
+- [ ] Validate all profiles with `docker compose config` on a Docker-enabled host or CI runner.
 
 ### Task 2: Identity and reverse proxy
 
@@ -114,5 +114,7 @@
 **Interfaces:**
 - Produces: CI checks, SPDX/CycloneDX SBOM artifacts, ADRs, and operations runbook.
 
-- [x] Compile Python, run pytest, and validate Compose.
-- [x] Generate two SBOM formats through Syft.
+- [x] Compile Python and run pytest.
+- [ ] Validate Compose on a Docker-enabled host or CI runner.
+- [x] Generate committed source-declaration SPDX and CycloneDX SBOMs.
+- [ ] Generate transitive Syft SBOMs in release CI.
