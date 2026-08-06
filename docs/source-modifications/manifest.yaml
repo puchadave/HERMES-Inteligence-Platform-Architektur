@@ -10,6 +10,18 @@ upstream_components:
       - path: searx/templates/simple/search.html
         replacement: services/searxng/overlay/searx/templates/simple/search.html
         purpose: Add deterministic Odysseus search-profile selection and specialist dispatch.
+  openosint:
+    repository: https://github.com/OpenOSINT/OpenOSINT
+    package_version: 2.25.0
+    integration_strategy: unmodified Python package behind Supergateway Streamable HTTP transport
+  github_mcp_server:
+    repository: https://github.com/github/github-mcp-server
+    image_tag: v1.0.5
+    integration_strategy: unmodified official container in native read-only HTTP mode
+  osint_automation_agents:
+    repository: https://github.com/esandeepchoudary/osint_automation_using_AI_agents
+    integration_strategy: architecture reference only
+    adopted_pattern: passive BBOT orchestration and report pipeline without Google ADK runtime
 changes:
   - id: ODY-0001
     files:
@@ -41,3 +53,28 @@ changes:
       - sbom/odysseus-source.cyclonedx.json
       - sbom/odysseus-source.spdx.json
     purpose: Deterministic top-level source and container declaration SBOMs.
+  - id: ODY-0007
+    files:
+      - compose.research.yaml
+      - services/openosint-mcp/Dockerfile
+      - config/mcp_servers.json
+    purpose: Add OpenOSINT and official GitHub MCP servers on the private backend network.
+  - id: ODY-0008
+    files:
+      - services/osint-worker/app/mcp_client.py
+      - services/osint-worker/app/planner.py
+      - services/osint-worker/app/worker.py
+      - services/osint-worker/app/source_intelligence.py
+    purpose: Consume NATS jobs, classify targets, execute MCP tools, run optional passive BBOT, and enrich GitHub repository targets.
+  - id: ODY-0009
+    files:
+      - services/osint-worker/app/scheduler.py
+      - config/research_targets.yml
+    purpose: Reload recurring research targets and publish due background jobs without service restarts.
+  - id: ODY-0010
+    files:
+      - services/osint-worker/app/reporting.py
+      - services/osint-worker/tests/test_planner.py
+      - services/osint-worker/tests/test_source_intelligence.py
+      - docs/architecture/MCP-AUTOMATION.md
+    purpose: Generate deterministic result artifacts, verify routing logic, and document the complete research pipeline.
