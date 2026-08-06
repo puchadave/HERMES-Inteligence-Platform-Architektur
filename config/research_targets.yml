@@ -1,0 +1,28 @@
+version: 1
+
+# The scheduler reloads this file on every poll. A target runs only when enabled=true.
+# interval_minutes has a hard minimum of five minutes.
+targets:
+  - id: puchalla-pro-domain
+    enabled: false
+    target: puchalla.pro
+    query: Collect current public domain, DNS, subdomain, WHOIS, and GitHub footprint changes for puchalla.pro.
+    profile: domain_infrastructure
+    data_class: internal
+    interval_minutes: 60
+    requested_by: odysseus-scheduler
+    metadata:
+      purpose: owned-asset-monitoring
+      compare_with_previous: true
+
+  - id: bnd-zone-domain
+    enabled: false
+    target: bnd.zone
+    query: Collect current public domain, DNS, subdomain, WHOIS, and GitHub footprint changes for bnd.zone.
+    profile: domain_infrastructure
+    data_class: internal
+    interval_minutes: 60
+    requested_by: odysseus-scheduler
+    metadata:
+      purpose: owned-asset-monitoring
+      compare_with_previous: true
