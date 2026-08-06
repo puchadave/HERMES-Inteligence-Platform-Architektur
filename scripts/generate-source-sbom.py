@@ -50,7 +50,7 @@ def collect() -> list[dict[str, str]]:
     components: list[dict[str, str]] = []
     compose_args: dict[str, str] = {}
 
-    for compose_path, compose in compose_documents():
+    for _, compose in compose_documents():
         for service, config in sorted(compose["services"].items()):
             if not isinstance(config, dict):
                 continue
@@ -134,31 +134,17 @@ def cyclonedx(components: list[dict[str, str]]) -> dict:
 
 def spdx(components: list[dict[str, str]]) -> dict:
     packages = []
-    relationships = []
     for index, component in enumerate(components, start=1):
-        spdx_id = f"SPDXRef-Package-{index}"
         packages.append({
             "name": component["name"],
-            "SPDXID": spdx_id,
+            "SPDXID": f"SPDXRef-Package-{index}",
             "versionInfo": component["version"],
             "downloadLocation": "NOASSERTION",
             "filesAnalyzed": False,
             "licenseConcluded": "NOASSERTION",
             "licenseDeclared": "NOASSERTION",
-            "supplier": "NOASSERTION",
-            "externalRefs": [{
-                "referenceCategory": "PACKAGE-MANAGER",
-                "referenceType": "purl",
-                "referenceLocator": f"pkg:generic/{component['name']}@{component['version']}",
-            }],
-            "annotations": [{
-                "annotationDate": DATE,
-                "annotationType": "OTHER",
-                "annotator": "Tool: Odysseus source SBOM generator",
-                "comment": f"Declared scope: {component['scope']}; type: {component['type']}",
-            }],
+            "comment": f"scope={component['scope']};type={component['type']}",
         })
-        relationships.append({"spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES", "relatedSpdxElement": spdx_id})
     digest = hashlib.sha256(json.dumps(components, sort_keys=True).encode()).hexdigest()
     return {
         "spdxVersion": "SPDX-2.3",
@@ -167,15 +153,9 @@ def spdx(components: list[dict[str, str]]) -> dict:
         "name": "Odysseus-D3-source-declaration",
         "documentNamespace": f"https://puchalla.pro/sbom/odysseus/{digest}",
         "creationInfo": {"created": DATE, "creators": ["Tool: Odysseus source SBOM generator"]},
-        "documentDescribes": [p["SPDXID"] for p in packages],
+        "documentDescribes": [package["SPDXID"] for package in packages],
         "packages": packages,
-        "relationships": relationships,
-        "annotations": [{
-            "annotationDate": DATE,
-            "annotationType": "OTHER",
-            "annotator": "Tool: Odysseus source SBOM generator",
-            "comment": "Top-level source declarations only; release CI generates transitive Syft SBOMs.",
-        }],
+        "comment": "Top-level source declarations only; release CI generates transitive Syft SBOMs.",
     }
 
 
