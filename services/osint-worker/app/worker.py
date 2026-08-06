@@ -33,6 +33,7 @@ INCLUDE_PAID = os.getenv("ODYSSEUS_ENABLE_PAID_OSINT", "false").lower() == "true
 ENABLE_BBOT = os.getenv("ODYSSEUS_ENABLE_BBOT", "false").lower() == "true"
 BBOT_TIMEOUT_SECONDS = int(os.getenv("ODYSSEUS_BBOT_TIMEOUT_SECONDS", "900"))
 MAX_DELIVERIES = max(1, int(os.getenv("ODYSSEUS_MAX_DELIVERIES", "5")))
+ACK_HEARTBEAT_SECONDS = max(5, int(os.getenv("ODYSSEUS_ACK_HEARTBEAT_SECONDS", "20")))
 
 
 def secret_is_available(name: str | None) -> bool:
@@ -169,6 +170,12 @@ async def process_job(job: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+async def keep_ack_alive(message: Any) -> None:
+    while True:
+        await asyncio.sleep(ACK_HEARTBEAT_SECONDS)
+        await message.in_progress()
+
+
 async def run() -> None:
     nc = await nats.connect(NATS_URL, name="odysseus-osint-worker", reconnect_time_wait=2, max_reconnect_attempts=-1)
     jetstream = nc.jetstream(timeout=5)
@@ -180,12 +187,14 @@ async def run() -> None:
     logger.info("Connected to JetStream; waiting on %s", NATS_SUBJECT)
 
     async def callback(message: Any) -> None:
+        heartbeat: asyncio.Task[None] | None = None
         try:
             job = json.loads(message.data.decode("utf-8"))
             if not isinstance(job, dict) or "job_id" not in job:
                 raise ValueError("Invalid Odysseus job payload")
             logger.info("Processing job %s", job["job_id"])
             await message.in_progress()
+            heartbeat = asyncio.create_task(keep_ack_alive(message))
             result = await process_job(job)
             await jetstream.publish(
                 NATS_RESULT_SUBJECT,
@@ -204,6 +213,10 @@ async def run() -> None:
                     await message.nak(delay=30)
             except Exception:
                 logger.exception("Could not acknowledge failed job")
+        finally:
+            if heartbeat is not None:
+                heartbeat.cancel()
+                await asyncio.gather(heartbeat, return_exceptions=True)
 
     await jetstream.subscribe(
         NATS_SUBJECT,
