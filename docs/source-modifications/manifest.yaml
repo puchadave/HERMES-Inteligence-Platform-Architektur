@@ -65,7 +65,7 @@ changes:
       - services/osint-worker/app/planner.py
       - services/osint-worker/app/worker.py
       - services/osint-worker/app/source_intelligence.py
-    purpose: Consume NATS jobs, classify targets, execute MCP tools, run optional passive BBOT, and enrich GitHub repository targets.
+    purpose: Consume jobs, classify targets, execute MCP tools, run optional passive BBOT, and enrich GitHub repository targets.
   - id: ODY-0009
     files:
       - services/osint-worker/app/scheduler.py
@@ -78,3 +78,19 @@ changes:
       - services/osint-worker/tests/test_source_intelligence.py
       - docs/architecture/MCP-AUTOMATION.md
     purpose: Generate deterministic result artifacts, verify routing logic, and document the complete research pipeline.
+  - id: ODY-0011
+    files:
+      - services/odysseus-api/app/queue.py
+      - services/odysseus-api/app/settings.py
+      - services/osint-worker/app/jetstream.py
+      - services/osint-worker/app/worker.py
+      - services/osint-worker/app/scheduler.py
+    purpose: Persist jobs and results in JetStream with explicit acknowledgements, heartbeats, bounded redelivery, and durable consumers.
+  - id: ODY-0012
+    files:
+      - services/odysseus-api/app/results.py
+      - services/odysseus-api/app/main.py
+      - services/odysseus-api/tests/test_results.py
+      - services/odysseus-api/tests/test_api.py
+      - compose.research.yaml
+    purpose: Mount completed research artifacts read-only and expose authenticated JSON and Markdown result endpoints.
