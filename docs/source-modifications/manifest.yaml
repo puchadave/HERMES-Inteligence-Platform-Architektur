@@ -14,10 +14,29 @@ upstream_components:
     repository: https://github.com/OpenOSINT/OpenOSINT
     package_version: 2.25.0
     integration_strategy: unmodified Python package behind Supergateway Streamable HTTP transport
+    companion_tools:
+      - name: supergateway
+        version: 3.4.3
+        source: npm
+      - name: holehe
+        version: 1.61
+        source: PyPI
+      - name: sherlock-project
+        version: 0.16.0
+        source: PyPI
+      - name: Sublist3r
+        version: 1.0
+        source: PyPI
+      - name: phoneinfoga
+        version: 2.11.0
+        source: https://github.com/sundowndev/phoneinfoga/releases/tag/v2.11.0
+        asset: phoneinfoga_Linux_x86_64.tar.gz
+        sha256: 6173dfc4ec009a6fe688068bac5a250646f5a8f56409098f5edcc7e404b12a52
   github_mcp_server:
     repository: https://github.com/github/github-mcp-server
     image_tag: v1.0.5
     integration_strategy: unmodified official container in native read-only HTTP mode
+    endpoint: http://github-mcp:8082/
   osint_automation_agents:
     repository: https://github.com/esandeepchoudary/osint_automation_using_AI_agents
     integration_strategy: architecture reference only
@@ -50,9 +69,10 @@ changes:
   - id: ODY-0006
     files:
       - scripts/generate-source-sbom.py
+      - sbom/source-components.yml
       - sbom/odysseus-source.cyclonedx.json
       - sbom/odysseus-source.spdx.json
-    purpose: Deterministic top-level source and container declaration SBOMs.
+    purpose: Deterministic top-level source, direct tool, and container declaration SBOMs.
   - id: ODY-0007
     files:
       - compose.research.yaml
@@ -94,3 +114,16 @@ changes:
       - services/odysseus-api/tests/test_api.py
       - compose.research.yaml
     purpose: Mount completed research artifacts read-only and expose authenticated JSON and Markdown result endpoints.
+  - id: ODY-0013
+    files:
+      - services/openosint-mcp/Dockerfile
+      - compose.research.yaml
+      - .env.example
+      - sbom/source-components.yml
+    purpose: Pin all directly installed OSINT tools, verify PhoneInfoga by SHA-256, and expose their versions as reproducible build arguments.
+  - id: ODY-0014
+    files:
+      - compose.research.yaml
+      - config/mcp_servers.json
+      - services/osint-worker/app/source_intelligence.py
+    purpose: Align GitHub MCP flags, root endpoint, and get_file_contents arguments with the official v1.0.5 source schemas.
