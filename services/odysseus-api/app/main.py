@@ -10,7 +10,7 @@ from .policy import PolicyEngine
 from .queue import NatsPublisher
 from .settings import get_settings
 
-app = FastAPI(title="Odysseus API", version="0.1.0")
+app = FastAPI(title="Odysseus API", version="0.2.0")
 
 
 @lru_cache
@@ -45,8 +45,8 @@ async def dispatch(
     if decision.route == Route.SEARXNG:
         raise HTTPException(status_code=409, detail="Standard searches must remain in SearXNG.")
 
+    settings = get_settings()
     job_id = str(uuid.uuid4())
-    subject = get_settings().nats_subject
     payload = {
         "job_id": job_id,
         "query": request.query,
@@ -55,14 +55,18 @@ async def dispatch(
         "metadata": request.metadata,
         "decision": decision.model_dump(mode="json"),
     }
-    publisher = NatsPublisher(get_settings().nats_url)
+    publisher = NatsPublisher(
+        settings.nats_url,
+        stream=settings.nats_stream,
+        subjects=(settings.nats_subject, settings.nats_result_subject),
+    )
     try:
-        await publisher.publish(subject, payload)
+        await publisher.publish(settings.nats_subject, payload)
         status = "queued"
     except Exception:
         status = "deferred"
 
-    return JobAccepted(job_id=job_id, status=status, subject=subject, decision=decision)
+    return JobAccepted(job_id=job_id, status=status, subject=settings.nats_subject, decision=decision)
 
 
 @app.get("/ui/search", response_class=HTMLResponse)
