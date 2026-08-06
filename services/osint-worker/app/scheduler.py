@@ -12,11 +12,15 @@ from typing import Any
 import nats
 import yaml
 
+from .jetstream import ensure_stream
+
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("odysseus-osint-scheduler")
 
 NATS_URL = os.getenv("ODYSSEUS_NATS_URL", "nats://localhost:4222")
 NATS_SUBJECT = os.getenv("ODYSSEUS_NATS_SUBJECT", "odysseus.jobs.search")
+NATS_RESULT_SUBJECT = os.getenv("ODYSSEUS_NATS_RESULT_SUBJECT", "odysseus.results.search")
+NATS_STREAM = os.getenv("ODYSSEUS_NATS_STREAM", "ODYSSEUS_SEARCH")
 CONFIG_PATH = Path(os.getenv("ODYSSEUS_SCHEDULE_PATH", "/app/config/research_targets.yml"))
 STATE_PATH = Path(os.getenv("ODYSSEUS_SCHEDULER_STATE", "/data/scheduler-state.json"))
 POLL_SECONDS = max(15, int(os.getenv("ODYSSEUS_SCHEDULER_POLL_SECONDS", "30")))
@@ -82,6 +86,12 @@ async def run() -> None:
             await asyncio.sleep(3600)
 
     nc = await nats.connect(NATS_URL, name="odysseus-osint-scheduler", reconnect_time_wait=2, max_reconnect_attempts=-1)
+    jetstream = nc.jetstream(timeout=5)
+    await ensure_stream(
+        jetstream,
+        name=NATS_STREAM,
+        subjects=(NATS_SUBJECT, NATS_RESULT_SUBJECT),
+    )
     state = load_state()
     logger.info("Scheduler online; configuration=%s", CONFIG_PATH)
 
@@ -100,13 +110,16 @@ async def run() -> None:
                 if not is_due(item, state, now):
                     continue
                 job = build_job(item)
-                await nc.publish(NATS_SUBJECT, json.dumps(job, ensure_ascii=False).encode("utf-8"))
+                await jetstream.publish(
+                    NATS_SUBJECT,
+                    json.dumps(job, ensure_ascii=False).encode("utf-8"),
+                    stream=NATS_STREAM,
+                )
                 identifier = str(item.get("id") or item.get("target"))
                 state[identifier] = now
                 changed = True
                 logger.info("Published scheduled job %s for %s", job["job_id"], item.get("target"))
             if changed:
-                await nc.flush()
                 save_state(state)
             await asyncio.sleep(POLL_SECONDS)
     finally:
