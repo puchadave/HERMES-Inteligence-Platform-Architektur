@@ -9,7 +9,7 @@ description = "Policy and dispatch service for Odysseus D3"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi==0.116.1",
-  "uvicorn[standard]==0.35.0",
+  "uvicorn[standard]==0.52.1",
   "pydantic-settings==2.10.1",
   "PyYAML==6.0.2",
   "nats-py==2.11.0"
